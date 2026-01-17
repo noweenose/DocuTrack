@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+cryptography
+python-multipart
+sqlalchemy
+passlib[bcrypt]
+python-jose
+pandas  
+matplotlib
+numpy
+pydantic[email]

@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head>
+  <meta charset="utf-8"/><title>Login</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h1>Login</h1>
+  <form id="loginForm">
+    <input type="email" id="email" placeholder="Email" required/>
+    <input type="password" id="password" placeholder="Password" required/>
+    <button type="submit">Login</button>
+  </form>
+  <pre>Accounts: prof.carig@docutrack.edu / Passw0rd!  •  k.lewins@docutrack.edu / Passw0rd! • t.capulong@docutrack.edu / Passw0rd! • j.fabian@docutrack.edu / Passw0rd!</pre>
+  <script src="/static/script.js"></script>
+  <script>
+  document.getElementById('loginForm').onsubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      const res = await api('/auth/login', 'POST', {
+        email: email.value,
+        password: password.value
+      });
+
+      localStorage.setItem('token', res.token);
+      localStorage.setItem('role', res.role);
+      localStorage.setItem('name', res.name);
+
+      if (res.role === 'professor') location.href = '/professor';
+      else if (res.role === 'student') location.href = '/student';
+      else alert('Unknown role: ' + res.role);
+
+    } catch (err) {
+      alert(err.message); // 👈 this will show "Invalid credentials"
+    }
+  };
+  </script>
+
+</body></html>

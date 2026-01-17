@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>DocuTrack • Professor</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    /* Layout helpers already in your app; extend for lab */
+    .grid{display:grid;gap:12px}
+    .cols-2{grid-template-columns:1fr 1fr}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+    /* --- Crypto Lab polish --- */
+    :root{
+      --bg:#0b1020; --card:#121a33; --ink:#eaf1ff; --muted:#9fb3d9;
+      --accent:#3b82f6; --accent-2:#64748b; --chip:#1e293b; --ok:#22c55e; --bad:#ef4444;
+      --code:#0b1530;
+    }
+    .crypto-card{
+      background:var(--card); color:var(--ink); border:1px solid #1e293b; border-radius:12px;
+    }
+    .crypto-card label{ color:var(--muted); display:block; margin:.5rem 0 .25rem; }
+    .crypto-card .btn{ background:var(--accent); }
+    .crypto-card .btn.secondary{ background:var(--accent-2); }
+    .crypto-card .badge{ background:var(--chip); color:var(--ink); }
+    .crypto-card .muted{ color:var(--muted); }
+    .crypto-card .ok{ color:var(--ok); }
+    .crypto-card .bad{ color:var(--bad); }
+
+    .lab-input, .lab-pre{
+      width:100%;
+      background:var(--code); color:var(--ink); border:1px solid #243253;
+      border-radius:10px; padding:10px 12px;
+    }
+    .lab-pre{ overflow:auto; max-height:220px; }
+    .pre-clip{ white-space:pre-wrap; word-break:break-word; }
+    .lab-hr{
+      border:0; border-top:1px solid #1f2937; margin:16px 0;
+    }
+    details > summary{ cursor:pointer; color:var(--muted); margin:.25rem 0 .5rem; }
+    details[open] > summary{ color:var(--ink); }
+  </style>
+</head>
+<body>
+<header>
+  <h1>DocuTrack — Professor</h1>
+  <div class="who" id="profName"></div>
+  <div class="space"></div>
+  <button id="logoutBtn" class="btn ghost">Logout</button>
+</header>
+
+<div class="container grid grid-2">
+  <section class="card">
+    <h2>Upload New Assignment</h2>
+    <div class="row mt-6">
+      <input type="text" id="title" placeholder="Title (optional)"/>
+      <div class="input-file">Choose Template (PDF)
+        <input type="file" id="templateFile" accept="application/pdf"/>
+      </div>
+      <button id="uploadBtn" class="btn">Upload</button>
+    </div>
+    <div id="uploadStatus" class="submit-status hidden"></div>
+    <!--<pre id="uploadResult" class="pad-8 mt-12" style="background:#0a0f16; border:1px solid #1e2b3b; border-radius:10px; max-height:160px; overflow:auto;"></pre> -->
+  </section>
+
+  <section class="card">
+    <h2>Assignments</h2>
+    <p class="sub">Pick one to issue to students.</p>
+    <table class="table" id="assignTable">
+      <thead><tr><th>ID</th><th>Title</th><th>Template Hash</th><th>Created</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="row mt-12">
+      <input type="number" id="assignmentId" placeholder="Selected Assignment ID"/>
+      <button id="refreshAssign" class="btn secondary">Refresh</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Issue to Students</h2>
+    <div class="row mt-6">
+      <select id="students" multiple size="7" style="min-width:260px;"></select>
+      <button id="issueBtn" class="btn ok">Issue</button>
+    </div>
+    <div id="issueStatus" class="submit-status hidden"></div>
+    <!-- <pre id="issueResult" class="pad-8 mt-12" style="background:#0a0f16; border:1px solid #1e2b3b; border-radius:10px; max-height:160px; overflow:auto;"></pre> -->
+  </section>
+
+  <section class="card">
+    <h2>Issued Files Tracker</h2>
+    <div class="row mt-6">
+      <a id="csvIssuances" class="btn ghost" href="#" target="_blank">Export CSV</a>
+      <button id="refreshIssued" class="btn secondary">Refresh</button>
+    </div>
+    <table class="table mt-12" id="issuedTable">
+      <thead>
+        <tr>
+          <th>Issuance</th><th>Assignment</th><th>Student</th><th>Issued At</th><th>Status</th><th>Submission</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="card" style="grid-column:1 / -1;">
+    <h2>Submissions</h2>
+    <div class="row mt-6">
+      <a id="csvSubs" class="btn ghost" href="#" target="_blank">Export CSV</a>
+      <button id="refreshSubs" class="btn secondary">Refresh</button>
+    </div>
+    <table class="table mt-12" id="subsTable">
+      <thead>
+      <tr><th>Issuance</th><th>Assignment</th><th>Student</th><th>Submitted At</th><th>Status</th><th>File</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</div>
+
+<button class="btn secondary" id="openCryptoLab">Crypto Lab</button>
+
+<section id="cryptoLab" class="card crypto-card hidden">
+  <h2>Crypto Lab (AES-GCM & RSA-PSS)</h2>
+
+  <div class="grid cols-2">
+    <div>
+      <label>Header JSON (editable)</label>
+      <textarea id="lab_hdr" rows="10" class="mono lab-input">
+{
+  "assignmentID": "CSXXX-01",
+  "studentID": "2025-001",
+  "issueTimestamp": "2025-11-02T00:00:00Z",
+  "templateHash": "deadbeefcafebabefeedface1234567890abcdef",
+  "algorithm": "AES-256-GCM + RSA-PSS-SHA256"
+}
+      </textarea>
+      <div class="row" style="gap:8px;margin-top:8px">
+        <button class="btn" id="lab_btnSign">Sign Header</button>
+        <button class="btn secondary" id="lab_btnVerify">Verify Signature</button>
+      </div>
+      <p id="lab_signMsg" class="muted"></p>
+    </div>
+
+    <div>
+      <details open>
+        <summary>Canonical AAD (immutable fields)</summary>
+        <pre id="lab_aad" class="mono lab-pre pre-clip">(will appear here)</pre>
+      </details>
+      <details>
+        <summary>Signature (hex)</summary>
+        <pre id="lab_sig" class="mono lab-pre pre-clip">(will appear here)</pre>
+      </details>
+      <div>Verified: <span id="lab_verified" class="badge">n/a</span></div>
+    </div>
+  </div>
+
+  <hr class="lab-hr"/>
+
+  <h3>Encrypt file (AES-256-GCM with AAD)</h3>
+  <div class="grid cols-2">
+    <div>
+      <input id="lab_file" type="file" />
+      <button class="btn" id="lab_btnEncrypt">Encrypt</button>
+      <div class="kpi" style="margin-top:10px">
+        <div>Key: <span id="lab_keyLen" class="badge">0 bytes</span></div>
+        <div>IV: <span id="lab_ivLen" class="badge">0 bytes</span></div>
+        <div>CT: <span id="lab_ctLen" class="badge">0 bytes</span></div>
+        <div>Tag: <span id="lab_tagLen" class="badge">0 bytes</span></div>
+      </div>
+    </div>
+    <div>
+      <details open>
+        <summary>Key (base64)</summary>
+        <pre id="lab_key" class="mono lab-pre pre-clip"></pre>
+      </details>
+      <details>
+        <summary>IV (base64)</summary>
+        <pre id="lab_iv" class="mono lab-pre pre-clip"></pre>
+      </details>
+      <details>
+        <summary>AAD (canonical header)</summary>
+        <pre id="lab_aad2" class="mono lab-pre pre-clip"></pre>
+      </details>
+    </div>
+  </div>
+
+  <div class="grid cols-2" style="margin-top:12px">
+    <div>
+      <details>
+        <summary>Ciphertext (base64)</summary>
+        <pre id="lab_ct" class="mono lab-pre pre-clip"></pre>
+      </details>
+    </div>
+    <div>
+      <details>
+        <summary>Auth Tag (base64)</summary>
+        <pre id="lab_tag" class="mono lab-pre pre-clip"></pre>
+      </details>
+    </div>
+  </div>
+
+  <div style="margin-top:8px">
+    <button class="btn secondary" id="lab_btnDownloadZip">Download ZIP</button>
+    <span id="lab_zipInfo" class="muted"></span>
+  </div>
+
+  <hr class="lab-hr"/>
+
+  <h3>Tamper & Decrypt</h3>
+  <p class="muted">Change 1 byte in ciphertext or modify AAD to demonstrate tag failure.</p>
+  <div class="grid cols-2">
+    <div>
+      <label>Ciphertext to decrypt (base64)</label>
+      <textarea id="lab_ctIn" rows="6" class="mono lab-input"></textarea>
+      <label>Tag (base64)</label>
+      <input id="lab_tagIn" class="mono lab-input" />
+      <label>AAD (exact canonical header)</label>
+      <textarea id="lab_aadIn" rows="4" class="mono lab-input"></textarea>
+      <div class="row" style="margin-top:8px; gap:8px">
+        <button class="btn" id="lab_btnTamper">Tamper 1 byte</button>
+        <button class="btn" id="lab_btnDecrypt">Decrypt</button>
+      </div>
+      <p id="lab_decMsg"></p>
+    </div>
+    <div>
+      <label>Key (base64)</label><input id="lab_keyIn" class="mono lab-input" />
+      <label>IV (base64)</label><input id="lab_ivIn" class="mono lab-input" />
+      <label>Plaintext (base64)</label><pre id="lab_pt" class="mono lab-pre"></pre>
+      <button class="btn secondary" id="lab_btnPreview">Preview PDF</button>
+      <iframe id="lab_preview" style="width:100%;height:60vh;border:1px solid #334155;margin-top:8px;border-radius:8px;background:#0b1220"></iframe>
+    </div>
+  </div>
+</section>
+
+
+<section class="card" id="resetCard">
+  <h2>Reset System</h2>
+  <p class="muted">
+    Type <code>RESET</code> to confirm. Choose what to clear:
+  </p>
+
+  <div class="row" style="gap:8px; align-items:center;">
+    <select id="resetScope">
+      <option value="issuances" selected>Issuances & Submissions only (keep users & templates)</option>
+      <option value="all">Everything (also deletes assignments/templates)</option>
+    </select>
+
+    <input id="resetConfirm" placeholder="Type RESET to confirm" />
+
+    <button id="resetBtn" class="danger">Reset</button>
+  </div>
+  <div id="resetStatus" class="submit-status hidden"></div>
+  <!-- <pre id="resetResult" style="margin-top:8px; max-height:240px; overflow:auto;"></pre> -->
+</section>
+
+
+<div id="toast" class="toast hide">
+  <div>
+    <div class="title">Notice</div>
+    <div class="msg" id="toastMsg">Hello</div>
+  </div>
+</div>
+
+<script src="/static/script.js"></script>
+<script>
+  // ===== Auth header area =====
+  ensureAuth('professor');
+  document.getElementById('profName').textContent = "Hello, " + (localStorage.getItem('name')||'');
+  document.getElementById('logoutBtn').onclick = logout;
+
+  function toast(msg){
+    const t = document.getElementById('toast');
+    document.getElementById('toastMsg').textContent = msg;
+    t.classList.remove('hide');
+    setTimeout(()=>t.classList.add('hide'), 2400);
+  }
+
+  /* ===== Upload ===== */
+  document.getElementById('uploadBtn').onclick = async ()=>{
+    const fd = new FormData();
+    fd.append('title', document.getElementById('title').value || '');
+    const file = document.getElementById('templateFile').files[0];
+    if(!file){ toast('Pick a PDF first.'); return; }
+    fd.append('file', file);
+
+    const url = new URL('/prof/assignments/upload', window.location.origin);
+    url.searchParams.set('token', localStorage.getItem('token') || '');
+    const res = await fetch(url, { method:'POST', body: fd });
+    const data = await res.json();
+    const box = document.getElementById('uploadStatus');
+    box.className = 'submit-status';
+
+    if (res.ok) {
+      box.classList.add('submit-ok');
+      box.innerHTML = `
+        ✅ Assignment uploaded successfully<br>
+        <strong>Title:</strong> ${data.title}<br>
+        <strong>Assignment ID:</strong> ${data.assignment_id}
+      `;
+    } else {
+      box.classList.add('submit-bad');
+      box.textContent = '❌ Upload failed';
+    }
+
+    box.classList.remove('hidden');
+    // document.getElementById('uploadResult').textContent = JSON.stringify(data, null, 2);
+    if(res.ok){ toast('Assignment uploaded.'); loadAssignments(); }
+  };
+
+  /* ===== Load Assignments ===== */
+  async function loadAssignments(){
+    const rows = await api('/prof/assignments');
+    const tb = document.querySelector('#assignTable tbody');
+    tb.innerHTML = '';
+    rows.forEach(r=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${r.id}</td><td>${r.title}</td><td>${r.template_hash.slice(0,16)}...</td><td>${prettyTime(r.created_at)}</td>`;
+      tr.style.cursor = 'pointer';
+      tr.onclick = ()=>{
+        document.getElementById('assignmentId').value = r.id;
+        toast('Selected assignment #' + r.id);
+      };
+      tb.appendChild(tr);
+    });
+  }
+  document.getElementById('refreshAssign').onclick = loadAssignments;
+  loadAssignments();
+
+  /* ===== Students list (multi-select) ===== */
+  async function loadStudents(){
+    const s = document.getElementById('students');
+    const rows = await api('/users/students');
+    s.innerHTML = '';
+    rows.forEach(u=>{
+      const opt = document.createElement('option');
+      opt.value = u.id; opt.textContent = `${u.name} — ${u.email}`;
+      s.appendChild(opt);
+    });
+  }
+  loadStudents();
+
+  /* ===== Issue ===== */
+  document.getElementById('issueBtn').onclick = async ()=>{
+    const aid = Number(document.getElementById('assignmentId').value);
+    const ids = [...document.getElementById('students').options].filter(o=>o.selected).map(o=>Number(o.value));
+    if(!aid || !ids.length){ toast('Pick assignment and at least one student.'); return; }
+    const res = await api('/prof/assignments/issue', 'POST', { assignment_id: aid, student_ids: ids });
+    const box = document.getElementById('issueStatus');
+    box.className = 'submit-status submit-ok';
+    box.innerHTML = `
+      ✅ Assignment issued successfully<br>
+      <strong>Assignment ID:</strong> ${aid}<br>
+      <strong>Students:</strong> ${ids.length}
+    `;
+    box.classList.remove('hidden');
+
+    toast(`Issued to ${ids.length} student(s).`);
+
+    // document.getElementById('issueResult').textContent = JSON.stringify(res, null, 2);
+    toast('Issued to ' + ids.length + ' student(s).');
+    loadIssued();
+  };
+
+  /* ===== Issuances tracker ===== */
+  function badge(status){
+    const s = (status||'').toLowerCase();
+    const cls = {issued:'issued', downloaded:'downloaded', decrypted:'decrypted', submitted:'submitted', tampered:'tampered'}[s] || 'issued';
+    return `<span class="badge ${cls}">${status}</span>`;
+  }
+
+  async function loadIssued(){
+    const rows = await api('/prof/issuances');
+    const tb = document.querySelector('#issuedTable tbody');
+    tb.innerHTML = '';
+    rows.forEach(r=>{
+      const sub = r.submission || {};
+
+      tb.innerHTML += `
+        <tr>
+          <td>${r.issuance_id}</td>
+          <td>#${r.assignment_id} — ${r.assignment_title}</td>
+          <td>
+            ${r.student.name}
+            <span style="color:var(--muted)">(${r.student.email})</span>
+          </td>
+          <td>${prettyTime(r.issued_at)}</td>
+          <td>${badge(r.status)}</td>
+          <td>
+            ${sub.status ? badge(sub.status) : '-'}
+            ${
+              sub.submitted_at
+                ? `<div style="margin-top:6px;color:var(--muted);font-size:12px">
+                    ${prettyTime(sub.submitted_at)}
+                  </div>`
+                : ''
+            }
+          </td>
+        </tr>`;
+    });
+
+
+    const token = localStorage.getItem('token')||'';
+    document.getElementById('csvIssuances').href = makeUrl('/prof/issuances/csv') + '?token=' + encodeURIComponent(token);
+  }
+  document.getElementById('refreshIssued').onclick = loadIssued;
+  loadIssued();
+
+  /* ===== Submissions table ===== */
+  async function loadSubs(){
+    const rows = await api('/prof/submissions');
+    const tb = document.querySelector('#subsTable tbody');
+    tb.innerHTML = '';
+
+    rows.forEach(r=>{
+      tb.innerHTML += `
+        <tr>
+          <td>${r.issuance_id || '-'}</td>
+          <td>#${r.assignment_id || '-'} — ${r.assignment_title || '-'}</td>
+          <td>
+            ${r.student.name}
+            <span style="color:var(--muted)">(${r.student.email})</span>
+          </td>
+          <td>${prettyTime(r.submitted_at)}</td>
+          <td>${badge(r.status)}</td>
+          <td>${r.file || '-'}</td>
+        </tr>`;
+    });
+    const token = localStorage.getItem('token')||'';
+    document.getElementById('csvSubs').href = makeUrl('/prof/submissions/csv') + '?token=' + encodeURIComponent(token);
+  }
+  document.getElementById('refreshSubs').onclick = loadSubs;
+  loadSubs();
+
+  // --- Reset System (professor only) ---
+  const resetBtn = document.getElementById('resetBtn');
+  if (resetBtn) {
+    resetBtn.onclick = async () => {
+      const scope = document.getElementById('resetScope').value;
+      const confirmTxt = document.getElementById('resetConfirm').value.trim();
+      const box = document.getElementById('resetStatus');
+
+      if (confirmTxt !== 'RESET') {
+        alert('Please type RESET to confirm.');
+        return;
+      }
+
+      resetBtn.disabled = true;
+      box.className = 'submit-status';
+      box.textContent = '⏳ Resetting system…';
+      box.classList.remove('hidden');
+
+
+      try {
+        const token = localStorage.getItem('token') || '';
+        const res = await fetch(
+          makeUrl('/admin/reset') + '?token=' + encodeURIComponent(token),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ confirm: 'RESET', scope })
+          }
+        );
+
+      if (res.ok) {
+        box.classList.add('submit-ok');
+        box.textContent = '⚠️ System reset completed successfully';
+      } else {
+        box.classList.add('submit-bad');
+        box.textContent = '❌ System reset failed';
+      }
+
+      } catch (e) {
+        box.classList.add('submit-bad');
+        box.textContent = '❌ Reset error: ' + (e?.message || 'Unknown error');
+
+      } finally {
+        resetBtn.disabled = false;
+      }
+    };
+  } // <-- close reset block
+
+  // ===== Crypto Lab toggle =====
+  window.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('openCryptoLab');
+    const lab = document.getElementById('cryptoLab');
+
+    if (btn && lab) {
+      btn.addEventListener('click', () => {
+        lab.classList.toggle('hidden');
+        if (!lab.classList.contains('hidden')) {
+          // scroll into view when opened
+          lab.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    }
+  });
+
+// ==== Crypto Lab state & helpers (add/replace this block) ====
+const LAB = { lastPreviewUrl: null, ptB64: null };
+
+function revokePreviewUrl() {
+  if (LAB.lastPreviewUrl) {
+    URL.revokeObjectURL(LAB.lastPreviewUrl);
+    LAB.lastPreviewUrl = null;
+  }
+}
+window.addEventListener('beforeunload', revokePreviewUrl);
+
+// Fast length estimate for base64 payloads (avoid atob on huge strings)
+function b64ByteLen(b64) {
+  // strip padding
+  const pad = (b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0);
+  return Math.floor(b64.length * 3/4) - pad;
+}
+
+  const $ = (id)=>document.getElementById(id);
+
+  function b64ToU8(b64){
+    const bin = atob(b64);
+    const u8 = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
+    return u8;
+  }
+  function u8ToBlob(u8, mime){ return new Blob([u8], {type:mime}); }
+  function setText(id, txt=""){ const el = document.getElementById(id); if(el) el.textContent = txt ?? ""; }
+
+  const b64ToBytes = (b64)=>Uint8Array.from(atob(b64),(c)=>c.charCodeAt(0));
+  const bytesToB64 = (u8)=>{let s="";u8.forEach(b=>s+=String.fromCharCode(b));return btoa(s)};
+  const tamperB64 = (b64)=>{const a=b64ToBytes(b64); if(a.length) a[0]^=1; return bytesToB64(a)};
+
+  // Sign header
+  $('lab_btnSign')?.addEventListener('click', async ()=>{
+    const fd = new FormData(); fd.append('header_json', $('lab_hdr').value);
+    const r = await fetch('/api/demo/sign-header', { method:'POST', body:fd });
+    const j = await r.json();
+    setText('lab_aad', j.canonicalAAD);
+    setText('lab_sig', j.signatureHex);
+    $('lab_verified').textContent = j.verified ? 'true' : 'false';
+    $('lab_verified').className = j.verified ? 'badge ok' : 'badge bad';
+    setText('lab_signMsg', 'Header signed using RSA-PSS (SHA-256).');
+  });
+
+// Verify header
+$('lab_btnVerify')?.addEventListener('click', async ()=>{
+  const sigHex = $('lab_sig').textContent.trim();
+  if (!sigHex || sigHex.startsWith('(will appear here)')) {
+    $('lab_signMsg').textContent = 'Sign the header first so a signature exists.';
+    $('lab_verified').textContent = 'false';
+    $('lab_verified').className = 'badge bad';
+    return;
+  }
+  const fd = new FormData();
+  fd.append('header_json', $('lab_hdr').value);
+  fd.append('signatureHex', sigHex);
+  try {
+    const r = await fetch('/api/demo/verify-header', { method:'POST', body:fd });
+    const j = await r.json();
+    $('lab_aad').textContent = j.canonicalAAD || '(no AAD)';
+    $('lab_verified').textContent = j.verified ? 'true' : 'false';
+    $('lab_verified').className = j.verified ? 'badge ok' : 'badge bad';
+    $('lab_signMsg').textContent = 'Verification complete.';
+  } catch (e) {
+    $('lab_signMsg').textContent = 'Verification failed.';
+    $('lab_verified').textContent = 'false';
+    $('lab_verified').className = 'badge bad';
+  }
+});
+
+  let lab_lastZipB64 = null;
+
+// Encrypt
+// ==== Encrypt (replace your existing lab_btnEncrypt handler) ====
+$('lab_btnEncrypt')?.addEventListener('click', async ()=>{
+  const f = $('lab_file').files[0];
+  if(!f){ alert('Choose a file'); return; }
+
+  $('lab_btnEncrypt').disabled = true;
+  try {
+    const fd = new FormData();
+    fd.append('header_json', $('lab_hdr').value);
+    fd.append('file', f);
+
+    const r = await fetch('/api/demo/aes-gcm-encrypt', { method:'POST', body:fd });
+    if(!r.ok){ alert('Encrypt failed'); return; }
+    const j = await r.json();
+
+    // Render small, keep big stuff in memory/inputs only
+    $('lab_key').textContent  = clip(j.keyB64);
+    $('lab_iv').textContent   = clip(j.ivB64);
+    $('lab_aad2').textContent = j.aad || '';
+    $('lab_ct').textContent   = clip(j.ciphertextB64, 512);
+    $('lab_tag').textContent  = clip(j.tagB64);
+
+    // Use math estimate instead of atob on huge strings
+    $('lab_keyLen').textContent = b64ByteLen(j.keyB64) + ' bytes';
+    $('lab_ivLen').textContent  = b64ByteLen(j.ivB64) + ' bytes';
+    $('lab_ctLen').textContent  = b64ByteLen(j.ciphertextB64) + ' bytes';
+    $('lab_tagLen').textContent = b64ByteLen(j.tagB64) + ' bytes';
+
+    $('lab_zipInfo').textContent = `Built ZIP for ${j.fileName} (${j.fileSize} bytes).`;
+    lab_lastZipB64 = j.zipB64;
+
+
+    // Preload decrypt inputs with FULL values (not clipped)
+    $('lab_keyIn').value = j.keyB64;
+    $('lab_ivIn').value  = j.ivB64;
+    $('lab_ctIn').value  = j.ciphertextB64;
+    $('lab_tagIn').value = j.tagB64;
+    $('lab_aadIn').value = j.aad;
+
+    // Clear previous plaintext state/preview
+    LAB.ptB64 = null;
+    revokePreviewUrl();
+    $('lab_pt').textContent = '';
+    $('lab_preview').src = 'about:blank';
+  } finally {
+    $('lab_btnEncrypt').disabled = false;
+  }
+});
+
+
+  // Download ZIP
+  $('lab_btnDownloadZip')?.addEventListener('click', ()=>{
+    if(!lab_lastZipB64){ alert('Encrypt first.'); return; }
+    const blob = new Blob([Uint8Array.from(atob(lab_lastZipB64),(c)=>c.charCodeAt(0))], {type:'application/zip'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'CryptoLab.zip'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 500);
+  });
+
+  // Tamper one byte
+  $('lab_btnTamper')?.addEventListener('click', ()=>{
+    if(!$('lab_ctIn').value){ alert('Nothing to tamper.'); return; }
+    $('lab_ctIn').value = tamperB64($('lab_ctIn').value);
+    $('lab_decMsg').innerHTML = '<span class="ok">Tampered 1 byte in ciphertext.</span>';
+  });
+
+ // ==== Decrypt (replace your existing lab_btnDecrypt handler) ====
+$('lab_btnDecrypt')?.addEventListener('click', async ()=>{
+  const fd = new FormData();
+  fd.append('keyB64', $('lab_keyIn').value.trim());
+  fd.append('ivB64',  $('lab_ivIn').value.trim());
+  fd.append('aad',    $('lab_aadIn').value);
+  fd.append('ciphertextB64', $('lab_ctIn').value.trim());
+  fd.append('tagB64', $('lab_tagIn').value.trim());
+
+  const r = await fetch('/api/demo/aes-gcm-decrypt', { method:'POST', body:fd });
+  if(!r.ok){
+    let t = 'Decryption failed';
+    try { const j = await r.json(); t = j.detail || t; } catch {}
+    $('lab_decMsg').innerHTML = `<span class="bad">${t}</span>`;
+    LAB.ptB64 = null;
+    revokePreviewUrl();
+    $('lab_pt').textContent = '';
+    $('lab_preview').src = 'about:blank';
+    return;
+  }
+
+  const j = await r.json();
+  LAB.ptB64 = j.plaintextB64; // store in JS, not in DOM
+  $('lab_decMsg').innerHTML = `<span class="ok">Decryption OK.</span> Plaintext size: ${j.plaintextSize} bytes.`;
+  // Show only a short hint in the <pre>, not the whole base64
+  $('lab_pt').textContent = `(PDF plaintext stored in memory — ${j.plaintextSize} bytes)`;
+});
+
+// ==== Preview (replace your existing lab_btnPreview handler) ====
+$('lab_btnPreview')?.addEventListener('click', ()=>{
+  if (!LAB.ptB64) {
+    $('lab_decMsg').innerHTML = '<span class="bad">Nothing to preview. Decrypt first.</span>';
+    return;
+  }
+  revokePreviewUrl();
+
+  // turn base64 -> Blob without putting it in the DOM
+  const bin = atob(LAB.ptB64);
+  const u8 = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
+  const blob = new Blob([u8], {type:'application/pdf'});
+  const url = URL.createObjectURL(blob);
+
+  LAB.lastPreviewUrl = url;
+  $('lab_preview').src = url;
+});
+
+</script>
+</body>
+</html>

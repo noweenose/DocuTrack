@@ -1,0 +1,187 @@
+/* ===== DocuTrack Reset & Theme ===== */
+:root{
+  --bg: #0b0f14;
+  --panel: #0f1720;
+  --muted: #9bb1c9;
+  --text: #e6eef8;
+  --soft: #1a2430;
+  --accent: #5ea0ff;
+  --accent-2: #55c6a9;
+  --danger: #ff6b6b;
+  --warn: #f3b94e;
+  --ok: #4fd18b;
+  --ring: rgba(94,160,255,.35);
+}
+.hidden{display:none!important;}
+*{ box-sizing: border-box; }
+html,body{ height:100%; }
+body{
+  margin:0;
+  font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
+  color:var(--text);
+  background: radial-gradient(1000px 600px at 10% -10%, #132034 0%, transparent 60%) ,
+              radial-gradient(700px 500px at 95% 10%, #1d2a3e 0%, transparent 60%),
+              var(--bg);
+}
+
+/* ===== Layout ===== */
+header{
+  position: sticky; top:0; z-index:5;
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding:16px 22px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  border-bottom:1px solid #1e2b3b;
+  backdrop-filter: blur(8px);
+}
+header h1{ font-size:18px; margin:0; letter-spacing:.2px; }
+header .who{ color:var(--muted); font-size:13px; }
+.container{ max-width:1100px; margin:24px auto; padding:0 16px; }
+
+.grid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap:16px;
+}
+
+.login-grid .card:last-child {
+  border-style: dashed;
+  opacity: 0.95;
+}
+
+/* ===== Landing / Welcome layout ===== */
+.login-grid {
+  display: grid;
+  grid-template-columns: 2.5fr 1fr; /* Login big, Accounts small */
+  gap: 16px;
+  align-items: start;
+}
+
+/* Mobile fallback */
+@media (max-width: 900px) {
+  .login-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media(min-width: 980px){
+  .grid-2{ grid-template-columns: 1.2fr .8fr; }
+  .grid-3{ grid-template-columns: 1fr 1fr 1fr; }
+}
+
+/* ===== Cards ===== */
+.card{
+  background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 90%, #000 10%), var(--panel));
+  border:1px solid #1e2b3b;
+  border-radius:16px;
+  padding:16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.02);
+}
+.card h2{ margin:4px 0 10px; font-size:16px; }
+.card .sub{ color:var(--muted); font-size:12px; margin-top:-4px; }
+
+/* ===== Forms ===== */
+.row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+input[type="text"], input[type="number"], input[type="email"], select, .input-file{
+  background: var(--soft); color:var(--text);
+  border:1px solid #233145; border-radius:10px; padding:10px 12px;
+  outline:none; min-width: 220px;
+}
+input[type="password"], input[type="number"], input[type="password"], select, .input-file{
+  background: var(--soft); color:var(--text);
+  border:1px solid #233145; border-radius:10px; padding:10px 12px;
+  outline:none; min-width: 220px;
+}
+button[type="submit"], input[type="number"], input[type="submit"], select, .input-file{
+  background: var(--soft); color:var(--text);
+  border:1px solid #233145; border-radius:10px; padding:10px 12px;
+  outline:none; min-width: 220px;
+}
+input:focus, select:focus{ border-color: var(--accent); box-shadow: 0 0 0 4px var(--ring); }
+
+.input-file{ position:relative; padding: 10px 12px; cursor:pointer; }
+.input-file input{ position:absolute; inset:0; opacity:0; cursor:pointer; }
+
+.btn{
+  appearance:none; border:none; border-radius:10px;
+  padding:10px 28px; color:#071018; background: var(--accent);
+  font-weight:600; cursor:pointer; box-shadow: 0 8px 20px rgba(94,160,255,.25);
+}
+
+.btn.secondary{ background: #2a3a52; color:var(--text); }
+.btn.ghost{ background: transparent; border:1px solid #2b3a50; color:var(--text); }
+.btn.warn{ background: var(--warn); color:#201400; }
+.btn.danger{ background: var(--danger); color:#1a0606; }
+.btn.ok{ background: var(--accent-2); }
+.btn:disabled{ opacity:.6; cursor:not-allowed; }
+
+/* ===== Tables ===== */
+.table{ width:100%; border-collapse: collapse; }
+.table th, .table td{ padding:10px 12px; border-bottom:1px solid #1e2b3b; text-align:left; }
+.table th{ color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.4px; }
+.table tr:hover td{ background:#111a25; }
+
+/* ===== Badges ===== */
+.badge{
+  font-size:11px; padding:4px 8px; border-radius:999px; font-weight:700; letter-spacing:.3px;
+  border:1px solid #223043;
+}
+.badge.issued{ color:#89b4ff; background:#0e203c; border-color:#1c3a67; }
+.badge.downloaded{ color:#ffd37b; background:#2b2210; border-color:#5a461d; }
+.badge.decrypted{ color:#8af2c5; background:#0d2e25; border-color:#265a49; }
+.badge.submitted{ color:#cbb7ff; background:#22163e; border-color:#3e2e6b; }
+.badge.tampered{ color:#ff9aa5; background:#2b1215; border-color:#5a242b; }
+
+/* ===== Toast ===== */
+.toast{
+  position: fixed; right:18px; bottom:18px; z-index:9999;
+  display:flex; gap:10px; align-items:center;
+  background: #0d1520; border:1px solid #24344a; color:var(--text);
+  padding:12px 14px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.35);
+  min-width:240px;
+}
+.toast.hide{ display:none; }
+.toast .title{ font-weight:700; font-size:13px; }
+.toast .msg{ color:var(--muted); font-size:12px; }
+
+/* ===== Iframe viewer ===== */
+.viewer{
+  width:100%; height:78vh; border:1px solid #1e2b3b; border-radius:12px; overflow:hidden; background:#0a0f16;
+}
+
+/* ===== Helpers ===== */
+.pad-8{ padding:8px; } .mt-6{ margin-top:6px; } .mt-12{ margin-top:12px; } .mt-16{ margin-top:16px; }
+.flex{ display:flex; align-items:center; gap:10px; }
+.space{ flex:1; }
+
+.hidden { display:none !important; }
+
+/* Keep giant values from stretching the page */
+.lab-pre { max-height: 220px; overflow: auto; word-break: break-all; }
+
+.submit-status {
+  margin-top: 14px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 2px solid;
+  font-weight: 600;
+  font-size: 15px;
+  max-width: 420px;
+}
+
+/* Accepted */
+.submit-ok {
+  background: #e8fff6;
+  border-color: #2f855a;
+  color: #22543d;
+}
+
+/* Duplicate / Rejected */
+.submit-bad {
+  background: #fff1f2;
+  border-color: #c53030;
+  color: #742a2a;
+}
+
+.hidden {
+  display: none;
+}

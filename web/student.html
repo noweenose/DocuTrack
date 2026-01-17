@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>DocuTrack • Student</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>DocuTrack — Student</h1>
+  <div class="who" id="stuName"></div>
+  <div class="space"></div>
+  <button id="logoutBtn" class="btn ghost">Logout</button>
+</header>
+
+<div class="container grid grid-2">
+  <section class="card">
+    <h2>My Issued Files</h2>
+    <p class="sub">Download the encrypted package, then decrypt by uploading it below.</p>
+    <table class="table" id="issuedTable">
+      <thead>
+        <tr>
+          <th>Issuance</th><th>Assignment</th><th>Issued At</th><th>Status</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Submit Answers</h2>
+    <div class="row mt-6">
+      <input type="number" id="issuanceId" placeholder="Issuance ID"/>
+      <div class="input-file">Choose Answer PDF
+        <input type="file" id="answerFile" accept="application/pdf"/>
+      </div>
+      <button id="submitAnswer" class="btn ok">Submit</button>
+    </div>
+    <div id="submitStatus" class="submit-status hidden"></div>
+    <!-- <pre id="submitResult" class="pad-8 mt-12" style="background:#0a0f16; border:1px solid #1e2b3b; border-radius:10px; max-height:220px; overflow:auto;"></pre> -->
+  </section>
+
+  <section class="card">
+    <h2>Decrypt by Uploading Encrypted Package</h2>
+    <p class="sub">Upload the <code>.zip</code> you downloaded to preview or save the decrypted PDF.</p>
+    <div class="row mt-6">
+      <div class="input-file">Choose Encrypted ZIP
+        <input type="file" id="encZip" accept=".zip"/>
+      </div>
+      <button id="btnPreview" class="btn">Preview</button>
+      <button id="btnDownload" class="btn secondary">Download Decrypted</button>
+    </div>
+  </section>
+
+  <section class="card" style="grid-column: 1 / -1;">
+    <h2>Preview</h2>
+    <iframe id="pdfViewer" class="viewer"></iframe>
+  </section>
+</div>
+
+<div id="toast" class="toast hide">
+  <div>
+    <div class="title">Notice</div>
+    <div class="msg" id="toastMsg">Hello</div>
+  </div>
+</div>
+
+<script src="/static/script.js"></script>
+<script>
+ensureAuth('student');
+document.getElementById('stuName').textContent = "Hello, " + (localStorage.getItem('name')||'');
+document.getElementById('logoutBtn').onclick = logout;
+
+function badge(status){
+  const s = (status||'').toLowerCase();
+  const map = { issued:'issued', downloaded:'downloaded', decrypted:'decrypted', submitted:'submitted', tampered:'tampered' };
+  return `<span class="badge ${map[s]||'issued'}">${status}</span>`;
+}
+
+async function loadIssued(){
+  const rows = await api('/student/issued');
+  const tbody = document.querySelector('#issuedTable tbody');
+  tbody.innerHTML = '';
+  rows.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.issuance_id}</td>
+      <td>${r.assignment_id}</td>
+      <td>${prettyTime(r.issued_at)}</td>
+      <td>${badge(r.status)}</td>
+      <td><button data-id="${r.issuance_id}" class="btn ghost dl">Download ZIP</button></td>`;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('.dl').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const id = btn.getAttribute('data-id');
+      const url = makeUrl('/student/download/' + id) + '?token=' + encodeURIComponent(localStorage.getItem('token')||'');
+      window.open(url, '_blank');
+      toast('Encrypted package is downloading…');
+    };
+  });
+}
+loadIssued();
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.remove('hide');
+  setTimeout(()=>t.classList.add('hide'), 2400);
+}
+
+document.getElementById('submitAnswer').onclick = async ()=>{
+  const issId = Number(document.getElementById('issuanceId').value);
+  const f = document.getElementById('answerFile').files[0];
+  if(!issId || !f){ toast('Please set Issuance ID and pick your answer PDF.'); return; }
+  const fd = new FormData(); fd.append('file', f);
+  try{
+    const res = await apiForm('/student/submit/'+issId, fd);
+    const box = document.getElementById('submitStatus');
+    box.className = 'submit-status';
+
+    if (res.status === 'ACCEPTED') {
+      box.textContent = '✅ Submission accepted';
+      box.classList.add('submit-ok');
+    } else if (res.status === 'DUPLICATE') {
+      box.textContent = '⚠️ Submission flagged as duplicate';
+      box.classList.add('submit-bad');
+    } else {
+      box.textContent = '❌ Submission rejected';
+      box.classList.add('submit-bad');
+    }
+
+    box.classList.remove('hidden');
+    toast('Submission processed.');
+  }catch(e){
+    toast('Submit failed.');
+  }
+};
+
+async function postDecrypt(file){
+  const fd = new FormData();
+  fd.append('file', file);
+  const token = localStorage.getItem('token') || '';
+  const res = await fetch(makeUrl('/student/decrypt/upload') + '?token=' + encodeURIComponent(token), {
+    method: 'POST', body: fd
+  });
+  if (!res.ok) {
+    let msg = 'Decryption failed';
+    try { const j = await res.json(); msg = j.detail || JSON.stringify(j); } catch {}
+    throw new Error(msg);
+  }
+  return await res.blob(); // PDF bytes
+}
+
+document.getElementById('btnPreview').onclick = async ()=>{
+  const input = document.getElementById('encZip');
+  if (!input.files[0]) { toast('Choose the encrypted .zip first.'); return; }
+  try {
+    const blob = await postDecrypt(input.files[0]);
+    const url = URL.createObjectURL(blob);
+    document.getElementById('pdfViewer').src = url;
+    toast('Decryption successful. Preview below.');
+  } catch (e) {
+    toast(e.message);
+  }
+};
+
+document.getElementById('btnDownload').onclick = async ()=>{
+  const input = document.getElementById('encZip');
+  if (!input.files[0]) { toast('Choose the encrypted .zip first.'); return; }
+  try {
+    const blob = await postDecrypt(input.files[0]);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'decrypted.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
+    toast('Decrypted PDF downloaded.');
+  } catch (e) {
+    toast(e.message);
+  }
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,2 @@
+records_processed,latency_mean_ms,latency_median_ms,latency_p95_ms,latency_max_ms,signature_accuracy_pct,gcm_accuracy_pct,overall_validity_pct,dup_TP,dup_FN,dup_FP,dup_TN,tam_TP,tam_FN,tam_FP,tam_TN,sig_TP,sig_FN,sig_FP,sig_TN
+54,25.314814814814813,16.0,21.349999999999994,287.0,85.18518518518519,85.18518518518519,70.37037037037037,16,0,0,38,8,0,0,46,8,0,0,46
