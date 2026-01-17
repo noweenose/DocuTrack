@@ -26,7 +26,7 @@ from fastapi.responses import FileResponse
 
 
 # ======== Config ========
-SECRET = os.getenv("JWT_SECRET", "dev-secret")
+SECRET = os.getenv("SECRET", "dev-secret-for-jwt")
 ALGO = "HS256"
 ACCESS_MINUTES = 60 * 8
 
